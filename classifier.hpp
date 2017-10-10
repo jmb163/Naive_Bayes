@@ -67,6 +67,7 @@ public:
     classifier(string);
     ~classifier();
     void query(string*); //return a class score
+    void print_attr();
     
 };
 

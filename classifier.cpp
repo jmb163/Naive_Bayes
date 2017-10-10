@@ -4,6 +4,7 @@
 #include<iostream>
 #include<boost/property_tree/xml_parser.hpp>
 #include<boost/property_tree/ptree.hpp>
+#include<boost/foreach.hpp>
 #include<string>
 #include<locale>
 //#include"matrix.cpp"
@@ -24,6 +25,7 @@ classifier::~classifier()
 
 void classifier::create_config()
 {
+    //print_attr();
     namespace pt=boost::property_tree;
     pt::ptree* pt1=new pt::ptree[num_attr+1];
     pt::ptree* classifier; //root node
@@ -39,15 +41,17 @@ void classifier::create_config()
     {
         num_e=at_list[i]->num_entries;
         string putme=to_string(num_e);
-        pt1[i].put("num_entries",putme);
+        //pt1[i].put("num_entries",putme);
         pt1[i].put("number", to_string(i));
         pt::ptree *attr_p=new pt::ptree[num_e];
         char* attrs=at_list[i]->get_entries();
-        for(int j=0; j<num_e; ++j)
-        {
-            attr_p[j].put("char", attrs[j]);
-            pt1[i].add_child("entry", attr_p[j]);
-        }
+        pt1[i].put("entries", char_array_to_string(attrs, num_e));
+//
+//        for(int j=0; j<num_e; ++j)
+//        {
+//            attr_p[j].put("char", attrs[j]);
+//            pt1[i].add_child("entry", attr_p[j]);
+//        }
     }
     
     for(int i=0; i<num_attr+1;++i)
@@ -65,23 +69,76 @@ void classifier::create_config()
 
 void classifier::load_attr_list(boost::property_tree::ptree pt)
 {
+    namespace ptr=boost::property_tree;
     list** attr_list=new list*[num_attr+1];
     for(int i=0;i<num_attr+1;++i)
     {
         attr_list[i]=new list;
     }
-    //ptr::ptree pt1=new ptr::ptree;
-    
+    ptr::ptree p;
+    ptr::ptree temp;
+    p=pt.get_child("at_list");
+    temp=p.get_child("list");
+//    for(int i=0; i<num_attr+1;++i)
+//    {
+//        for(int j=0; j<temp.get<int>("num_entries"); ++j)
+//        {
+//            boost::property_tree::ptree temp2;
+//            temp2=temp.get_child("entry");
+//            attr_list[i]->d_add((char)temp2.get<char>("char"));
+//        }
+//    }
+
+    int count=0;
+    BOOST_FOREACH(ptr::ptree::value_type& v, pt.get_child("at_list"))
+    {
+        BOOST_FOREACH(ptr::ptree::value_type& s, v.second.get_child(""))
+        {
+//            cout<<s.first<<endl;
+//            cout<<s.second.data()<<endl;
+            string hold=s.second.data();
+            string first=s.first;
+            string check=s.first;
+            if(check=="entries")
+            {
+                string hold=s.second.data();
+                for(int i=0; i<hold.length(); ++i)
+                {
+                    attr_list[count]->d_add(hold.at(i));
+                }
+                count++;
+            }
+
+        }
+    }
+
+    at_list=attr_list;
+    print_attr();
+    return;
 }
 
 void classifier::load_config(boost::property_tree::ptree pt)
 {
     boost::property_tree::read_xml("nbayes_config.xml", pt);
-    string clf="classifier";
-    max_attr=pt.get<int>(clf+".param.max_attr");
-    num_attr=pt.get<int>(clf+".param.num_attr");
-    num_classes=pt.get<int>(clf+".param.num_classes");
-    
+    max_attr=pt.get<int>("param.max_attr");
+    num_attr=pt.get<int>("param.num_attr");
+    num_classes=pt.get<int>("param.num_classes");
+    load_attr_list(pt);
+    return;
+}
+
+void classifier::print_attr()
+{
+    for(int i=0; i < num_attr+1; ++i)
+    {
+        cout<<"list: "<<i<<endl;
+        char* a=at_list[i]->get_entries();
+        for(int j=0; j<at_list[i]->num_entries; ++j)
+        {
+            cout<<" "<<a[j]<<endl;
+        }
+    }
+    return;
 }
 
 void classifier::init(string fname)
@@ -93,13 +150,18 @@ void classifier::init(string fname)
     in.open("nbayes_config.xml");
     if(!in||in.fail())
     {
+        in.close();
         at_list=preprocess(fname);
         create_config();
+        
     }
-    //preprocessing and config is now done, at this point, begin loading data
-    in.close();
-    boost::property_tree::ptree pt;
-    //boost::property_tree::read_xml("nbayes_config.xml", pt);
+    else
+    {
+        in.close();
+        boost::property_tree::ptree pt;
+        boost::property_tree::xml_parser::read_xml("nbayes_config.xml", pt);
+        load_config(pt);
+    }
     return;
 }
 

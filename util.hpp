@@ -19,4 +19,6 @@ int random_range(const int start, const int end);
 
 int get_index(char*, int, char);
 
+string char_array_to_string(char*, int);
+
 #endif /* UTIL_HPP_ */

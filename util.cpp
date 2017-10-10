@@ -195,6 +195,16 @@ int get_index(char* arr, int size, char check)
     return -1; //return negative if the index is not found
 }
 
+string char_array_to_string(char* arr, int s)
+{
+    string ret;
+    for(int i=0; i<s; ++i)
+    {
+        ret+=arr[i];
+    }
+    return ret;
+}
+
 //end=(i < divs) ? s.find_first_of(d, start) : (s.length()-1);
 //length+=end;
 //answer[i+1]=s.substr(start, end);
