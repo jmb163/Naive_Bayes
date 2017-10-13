@@ -4,6 +4,7 @@
 #include<string>
 #include<boost/property_tree/xml_parser.hpp>
 #include<boost/property_tree/ptree.hpp>
+#include"matrix.cpp"
 
 
 using namespace std;
@@ -37,7 +38,8 @@ struct list
     void d_add(char);
     bool d_in_list(char);
     char* get_entries();
-    
+    int get_index(char); //get the index of a char (position in linked list actually) or -1 if
+    //not found
 };
 
 class classifier
@@ -47,6 +49,18 @@ private:
     //for any given attribute
     int num_classes;//how many different classes are possible
     int num_attr; //number of atributes for the data
+    
+    matrix<double>* p_c;       //holds the sum of the classes that appear
+    matrix<double>* p_attr;    //probability of a given attribute
+    matrix<double>* dep_p_attr;//probability of a given attribute given its class
+    
+    /*
+     p_c should be [num_classes]
+     p_attr should be [at_list_index][number of attributes]
+     dep_p_attr [num_classes][at_list_size][attribute]
+     
+     1D 2D 3D matrices
+     */
     
     
     list** at_list;
@@ -69,6 +83,9 @@ public:
     void query(string*); //return a class score
     void print_attr();
     
+    void process(string); //read data from a file, and populate the probability matrices
+    char classify(string* csv); //given some comma seperated values, the model will output
+    //classification based on the attributes
 };
 
 

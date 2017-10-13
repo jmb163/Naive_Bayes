@@ -3,6 +3,7 @@
 #include<stdlib.h>
 #include<iostream>
 #include<string>
+#include<fstream>
 
 using namespace std;
 
@@ -16,5 +17,18 @@ int main(int argc, char* argv[])
     string fname=argv[1];
     classifier* c;
     c=new classifier(fname);
+    c->process(fname);
+    ifstream in("agaricus-lepiota");
+    int count=0;
+//    string hold;
+//    while(getline(in,hold) && count<20)
+//    {
+//        cout<<hold<<endl;
+//        strip_char(hold, "\n");
+//        string* csv=split(hold, ',');
+//        cout<<c->classify(csv)<<endl;
+//        ++count;
+//    }
+    in.close();
     return 0;
 }

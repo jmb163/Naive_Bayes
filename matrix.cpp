@@ -19,7 +19,7 @@ private:
     int* rcd; //the dimensions of the matrix in array form, [row, column, depth]
     t* data;
     
-    void init(int* dims, int n_dims ,t* def)
+    void init(int* dims, int n_dims ,t def)
     {
         //the int[] argument contains the measure of the dimensions of the matrix
         //the other int argument is the number of dimensions
@@ -37,7 +37,7 @@ private:
         data=new t[product];
         for(int i=0; i<product; ++i)
         {
-            data[i]=i; //set the default value in the matrix
+            data[i]=def; //set the default value in the matrix
         }
         d=n_dims;
         rcd=new int[n_dims];
@@ -56,17 +56,16 @@ private:
     {
         int index=0;
         index=(d>=2) ? dims[0]*rcd[1]+dims[1] : dims[0];
-        for(int i=0; i<d; ++i)
-        {
-            cout<<dims[i]<<" ";
-        }
-        cout<<endl;
+//        for(int i=0; i<d; ++i)
+//        {
+//            cout<<dims[i]<<" ";
+//        }
+//        cout<<endl;
         //cout<<"index"<<index<<endl;
         if(d>2)
         {
             int product=rcd[0]*rcd[1];
-            int i=2;
-            for(i; i<d; ++i)
+            for(int i=2; i<d; ++i)
             {
                 index+=dims[i]*product;
                 //product*= (i==d-1) ? rcd[i] : 1;
@@ -74,7 +73,7 @@ private:
             }
             //index+=product;
         }
-        cout<<"final index: "<<index<<endl;
+        //cout<<"final index: "<<index<<endl;
         return index;
     }
     int get_num_values()
@@ -112,7 +111,7 @@ public:
         return rcd;
     }
     
-    matrix(int* d, int nd, t* def)
+    matrix(int* d, int nd, t def)
     {
         init(d, nd, def);
     }
