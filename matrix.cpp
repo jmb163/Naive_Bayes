@@ -130,6 +130,14 @@ public:
             f(data[i]);
         }
     }
+    
+    void print_native()
+    {
+        for(int i=0; i<get_num_values(); ++i)
+        {
+            cout<<data[i]<<endl;
+        }
+    }
 };
 
 /*

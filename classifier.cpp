@@ -12,6 +12,9 @@
 
 using namespace std;
 
+//this macro makes it easier and less error prone to increment the given coordinates
+#define inc_matrix(m, d) m->set(d, m->at(d)+1)
+
 classifier::classifier(string fname)
 {
     init(fname);
@@ -26,60 +29,274 @@ classifier::~classifier()
 
 char classifier::classify(string* csv)
 {
-    //new line should already be stripped iterate over the values
-    //record the error of the classification
-    char cls=csv[1].at(0);
-    //compute the probability of each class and then report the char of the most probable
-    double pattr=1;
-    double* dep_pattr=new double[num_classes];
-    double* pc=new double[num_classes];
-    double* p=new double[num_classes]; //this variable will hold the final probability
-    //the other variables will hold intermediate values to aid in calculation
-    dep_pattr[0]=dep_pattr[1]=1;
-    pc[0]=pc[1]=1;
-    for(int i=0; i<num_classes; ++i)
-    {
-        int dim[]={i};
-        pc[i]=p_c->at(dim);
-    }
-    //compute dependent probability
+//    p_c->print_native();
+//    cout<<"end"<<endl;
+//    p_attr->print_native();
+//    cout<<"end"<<endl;
+//    dep_p_attr->print_native();
+//    cout<<"end"<<endl;
+    
+    int* indices =new int[num_attr];
     for(int i=0; i<num_attr; ++i)
     {
-        int subind[]={i,at_list[i+1]->get_index(csv[i+1].at(0))};
-        pattr*=p_attr->at(subind);
+        indices[i]=at_list[i+1]->get_index(csv[i+2].at(0));
     }
+    //cout<<"here"<<endl;
+    double attribute_probabilities=1;
+    double* class_probabilities =new double[num_classes];
+    double* dependent_probabilities =new double[num_classes];
     for(int i=0; i<num_classes; ++i)
     {
-        for(int j=0; j<num_attr; ++j)
+        class_probabilities[i]=1;
+        dependent_probabilities[i]=1;
+    }
+    //set the products to one initially so that the products can accumulate
+    //the final probability will be computed from these values when they are ready
+    //output and diagnostic information will be written to a log file
+    int dependent_indices[]={0,0,0};
+    int attribute_indices[]={0,0};
+    //    matrix<double>* p_c;       //holds the sum of the classes that appear
+    //    matrix<double>* p_attr;    //probability of a given attribute
+    //    matrix<double>* dep_p_attr;//probability of a given attribute given its class
+    for(int i=0; i<num_attr; ++i)
+    {
+        attribute_indices[0]=dependent_indices[1]=i;
+        attribute_indices[1]=dependent_indices[2]=indices[i];
+        attribute_probabilities*=p_attr->at(attribute_indices);
+        for(int j=0; j<num_classes; ++j)
         {
-            int num_e=at_list[j+1]->num_entries;
-            int subind[]={i,j,at_list[j+1]->get_index(csv[j+1].at(0))};
-            dep_pattr[i]*=dep_p_attr->at(subind);
+            dependent_indices[0]=j;
+            dependent_probabilities[j]*=10*dep_p_attr->at(dependent_indices); //times 10 to avoid numerical underflow
+        }
+    }
+    int class_indices[]={0};
+    for(int i=0; i<num_classes; ++i)
+    {
+        class_indices[i]=i;
+        class_probabilities[i]=p_c->at(class_indices);
+    }
+    ofstream out("logfile.txt", std::ios_base::app); //set the stream to append, an interested user can tail the file
+    //for real time diagnostics or scroll through at their own liesure
+    if(out.fail()||!out)
+    {
+        cout<<"issue creating log file, diagnostics will not be recorded!"<<endl;
+        out.close();
+    }
+    double* final_prediction =new double[num_classes];
+    for(int i=0; i<num_classes; ++i)
+    {
+        out<<"Diagnostics info:"<<endl;
+        out<<"class index-> "<<i<<endl;
+        out<<"class value-> "<<at_list[0]->get_entries()[i]<<endl;
+        out<<"class probabilty-> "<<class_probabilities[i]<<endl;
+        out<<"dependent probabilty-> "<<dependent_probabilities[i]<<endl;
+        out<<"probability of given attributes-> "<<attribute_probabilities<<endl;
+        final_prediction[i]=((class_probabilities[i]*dependent_probabilities[i])/attribute_probabilities);
+        out<<"final prediction for class-> "<<final_prediction[i]<<endl;
+    }
+    return 'c';
+    
+}
+
+//void classifier::process(string fname)
+//{
+//    ifstream in(fname);
+//    if(!in||in.fail())
+//    {
+//        cout<<"problem loading the given file, exiting now..."<<endl;
+//        return;
+//    }
+//    string hold;
+//    int* c_summation=new int[num_classes];
+//    int** attribute_summation[num_attr];
+//    int*** dependent_summation[num_classes];
+//    
+//    int* num_e=new int[num_attr];
+//    for(int i=0; i<num_attr; ++i)
+//    {
+//        num_e[i]=at_list[i+1]->num_entries;
+//    }
+//    
+//    for(int i=0; i<num_classes; ++i)
+//    {
+//        dependent_summation[i]=new int*[num_attr];
+//        for(int j=0; j<num_attr; j++)
+//        {
+//            dependent_summation[i][j]=new int[num_e[i]];
+//        }
+//    }
+//    for(int i=0; i<num_attr; ++i)
+//    {
+//        attribute_summation[i]=new int[num_e[i]];
+//    }
+//    //done instantiating summation matrices
+//    while(getline(in, hold))
+//    {
+//        stip_char(hold, "\n");
+//        string* csv=split(hold,',');
+//        int* indexes=new int[num_attr];
+//        for(int i=0; i<num_attr+1; ++i)
+//        {
+//            indexes[i]=at_list[i]->get_index(csv[i+1].at(0));
+//        }
+//        int class_ind[]={indexes[0]};
+//        //c_summation->set(class_ind, c_summation->at(class_ind)+1);
+//        inc_matrix(c_summation, class_ind);
+//        int pattr_index[]={0,0};
+//        int dep_attr_index[]={indexes[0], 0, 0};
+//        for(int i=0; i<num_attr; ++i)
+//        {
+//            pattr_index[0]=dep_attr_index[1]=i;
+//            pattr_index[1]=dep_attr_index[2]=indexes[i+1]; //attribute subindex
+//            inc_matrix(attribute_summation, pattr_index);
+//            inc_matrix(dependent_summation, dep_attr_index);
+//        }
+//
+//    }
+//}
+
+void classifier::process(string fname)
+{
+    ifstream in(fname);
+    if(in.fail()||!in)
+    {
+        cout<<"problem loading training set, exiting now..."<<endl;
+        return;
+    }
+    string hold;
+    int c_dims[]={num_classes};
+    int attr_dims[]={num_attr, max_attr};
+    int dep_dims[]={num_classes, num_attr, max_attr};
+    
+    matrix<int>* c_summation=new matrix<int>(c_dims, 1, 0);
+    matrix<int>* attribute_summation=new matrix<int>(attr_dims, 2, 0);
+    matrix<int>* dependent_summation=new matrix<int>(dep_dims, 3, 0);
+    int* indexes=new int[num_attr+1];
+    while(getline(in, hold))
+    {
+        //record of indexes in attribute list for easier times later
+        strip_char(hold, "\n");
+        string* csv=split(hold, ',');
+        for(int i=0; i<num_attr+1; ++i)
+        {
+            indexes[i]=at_list[i]->get_index(csv[i+1].at(0));
+        }
+        int class_ind[]={indexes[0]};
+        //c_summation->set(class_ind, c_summation->at(class_ind)+1);
+        inc_matrix(c_summation, class_ind);
+        int pattr_index[]={0,0};
+        int dep_attr_index[]={indexes[0], 0, 0};
+        for(int i=0; i<num_attr; ++i)
+        {
+            pattr_index[0]=dep_attr_index[1]=i;
+            pattr_index[1]=dep_attr_index[2]=indexes[i+1]; //attribute subindex
+            inc_matrix(attribute_summation, pattr_index);
+            inc_matrix(dependent_summation, dep_attr_index);
+        }
+    }
+    
+//    c_summation->print_native();
+//    cout<<"end"<<endl;
+//    attribute_summation->print_native();
+//    cout<<"end"<<endl;
+//    dependent_summation->print_native();
+//    cout<<"end"<<endl;
+    //cout<<"finished summation phase 1"<<endl;
+    //now that the summation matrices are complete, we must compute probabilties
+    //implement the laplace transform, add 1 to all values, divide by one more,
+    //this method avoids numerical underflow or division by zero errors
+    int* c_sums=new int[num_classes];
+    int* at_sums=new int[num_attr];
+    int** dep_sums=new int*[num_classes];
+    int* num_e=new int[num_attr];
+    
+    int start_value=1; //can be changed to help with laplace transform
+    //make sure that there are no garbage values anywhere;
+    
+    //in this case I am setting the start value to one, as division by zero will cause many more errors in the case that any
+    //sum ever comes out to zero
+    for(int i=0; i<num_classes; ++i)
+    {
+        dep_sums[i]=new int[num_attr];
+    }
+    for(int i=0; i<num_attr; ++i)
+    {
+        num_e[i]=at_list[i+1]->num_entries;
+        at_sums[i]=start_value;
+        for(int j=0; j<num_classes; ++j)
+        {
+            dep_sums[j][i]=start_value;
         }
     }
     for(int i=0; i<num_classes; ++i)
     {
-        p[i]=((dep_pattr[i]*pc[i])/pattr);
+        c_sums[i]=start_value;
     }
-    char* possible=at_list[0]->get_entries();
-    double max=p[0];
-    for(int i=0;i<num_classes; ++i)
+    int pattr_index[]={0,0};
+    int dep_attr_index[]={0, 0, 0};
+    //cout<<"here"<<endl;
+    for(int i=0; i<num_attr; ++i)
     {
-        max=(p[i]>max) ? p[i] : max;
-        //cout<<"probability "<<i<<": "<<pc[i]<<endl;
+        for(int j=0; j<num_e[i]; ++j)
+        {
+            pattr_index[0]=dep_attr_index[1]=i;
+            pattr_index[1]=dep_attr_index[2]=j;
+            //cout<<"wow "<<i<<" "<<j<<endl;
+            at_sums[i]+=attribute_summation->at(pattr_index);
+            cout<<"adding "<<attribute_summation->at(pattr_index)<<" to at_sums["<<i<<"]"<<endl;
+            for(int h=0; h<num_classes; ++h)
+            {
+                //cout<<"in here"<<endl;
+                cout<<"adding "<<dependent_summation->at(pattr_index)<<" to dep_sums["<<i<<"]["<<h<<"]"<<endl;
+                dep_sums[h][i]+=dependent_summation->at(dep_attr_index);
+            }
+        }
     }
-    int index=0;
+    cout<<"at_sums: "<<endl;
+    for(int i=0; i<num_attr; ++i)
+    {
+        cout<<at_sums[i]<<endl;
+    }
+    cout<<"dep_sums: "<<endl;
+    for(int i=0; i<num_attr; ++i)
+    {
+        for(int j=0; j<num_classes; ++j)
+        {
+            cout<<dep_sums[j][i]<<endl;
+        }
+    }
+    int laplace_value=1;
+    for(int i=0; i<num_attr; ++i)
+    {
+        for(int j=0; j<num_e[i]; ++i)
+        {
+            pattr_index[0]=dep_attr_index[1]=i;
+            pattr_index[1]=dep_attr_index[2]=j;
+            p_attr->set(pattr_index,((double)attribute_summation->at(pattr_index)+laplace_value)/at_sums[i]);
+            for(int h=0; h<num_classes; ++h)
+            {
+                //cout<<(((double)dependent_summation->at(dep_attr_index)+laplace_value)/dep_sums[h][i])<<endl;
+                dep_p_attr->set(dep_attr_index,((double)dependent_summation->at(dep_attr_index)+laplace_value)/dep_sums[h][i]);
+            }
+        }
+    }
+    delete[] num_e;
+    delete[] indexes;
+    delete[] c_sums;
+    delete[] at_sums;
     for(int i=0; i<num_classes; ++i)
     {
-        index = (p[i]==max) ? i : index;
+        delete[] dep_sums[i];
     }
-    for(int i=0; i<num_classes; ++i)
-    {
-        cout<<"probabilty of class "<<i<<": "<<pc[i]<<endl;
-        cout<<"probability of attributes: "<<pattr<<endl;
-        cout<<"dependent probabilty of attributes given class "<<i<<": "<<dep_pattr[i]<<endl;
-    }
-    return possible[index];
+    delete attribute_summation;
+    delete dependent_summation;
+    delete c_summation;
+    delete[] dep_sums;
+    
+    //free all the memory used in the processing stage
+    return;
+    //build probability matrices from summation matrices
+    
 }
 
 void classifier::create_config()
@@ -263,102 +480,6 @@ list** classifier::preprocess(string fname)
     return attr_list;
 }
 
-void classifier::process(string fname)
-{
-    //read in the data, build probability matrices
-    ifstream in(fname);
-    if(in.fail()||!in)
-    {
-        cout<<"problem loading file"<<endl;
-        return;
-    }
-    string hold;
-    int count=0;
-    
-    int pc_dems[]={num_classes};
-    int pattr_dems[]={num_attr, max_attr};
-    int dep_dems[]={num_classes, num_attr, max_attr};
-    
-    //allocate summation matrices
-    matrix<int>* s_p_c=new matrix<int>(pc_dems, 1, 0);
-    matrix<int>* s_p_attr=new matrix<int>(pattr_dems, 2, 0);
-    matrix<int>* s_dep_p_attr=new matrix<int>(dep_dems, 3, 0);
-    
-    while(getline(in, hold))
-    {
-        strip_char(hold, "\n");
-        string* dat=split(hold,',');
-        char d=dat[1].at(0);
-        int c_ind=at_list[0]->get_index(d);//what is the index of the class label in question
-        int pcd[]={c_ind};
-        s_p_c->set(pcd, s_p_c->at(pcd)+1);//increment the class counter
-        //now sum over the attributes
-        for(int i=0; i<num_attr; ++i)
-        {
-            //this is a little confusing but basically we are just taking a sum
-            //of what particular data appears to be used later in probability computations
-            d=dat[i+2].at(0);
-            int at_index=at_list[i+1]->get_index(d);
-            int pad[]={i, at_index};
-            s_p_attr->set(pad, s_p_attr->at(pad)+1);
-            int pdepd[]={c_ind,i,at_index};
-            s_dep_p_attr->set(pdepd, s_dep_p_attr->at(pdepd)+1);
-            //cout<<s_dep_p_attr->at(pdepd)<<endl;
-        }
-        ++count; //keep count of how many entries, useful for later calculations
-    }
-    char* temp=at_list[0]->get_entries();
-    //set the class probabilities
-    for(int i=0; i<num_classes; ++i)
-    {
-        int ind[]={at_list[0]->get_index(temp[i])};
-        p_c->set(ind, (double)(s_p_c->at(ind)/count));
-    }
-    //set the attribute probabilities
-    for(int i=0; i<num_attr; ++i)
-    {
-        int n_at=at_list[i+1]->num_entries;
-        temp=at_list[i+1]->get_entries();
-        for(int j=0; j<n_at; ++j)
-        {
-            char d=temp[j];
-            int ind[]={i, at_list[i+1]->get_index(d)};
-            p_attr->set(ind, (double)s_p_attr->at(ind)/count);
-            //cout<<(double)s_p_attr->at(ind)/count<<endl;
-        }
-    }
-    int dep_count=0;
-    //set the dependent probabilities from the summation matrices
-    //a little dense perhaps, but it should work
-    
-    //[class index][attribute_number][index of attribute in list]
-    //sum across the class values to get the total of an attribute given its class
-    int dims[]={0,0,0};
-    for(int i=0; i<num_attr; ++i)
-    {
-        dims[1]=i;
-        int n_at=at_list[i+1]->num_entries;
-        temp=at_list[i+1]->get_entries();
-        for(int j=0; j<n_at; ++j)
-        {
-            dims[2]=j;
-            for(int h=0; h<num_classes; ++h)
-            {
-                dims[0]=h;
-                dep_count+=s_p_attr->at(dims); //sum across the classes
-                //calculate the dependent probability of each attribute
-            }
-            for(int h=0; h<num_classes; ++h)
-            {
-                dims[0]=h;
-                dep_p_attr->set(dims, (double)s_dep_p_attr->at(dims)/dep_count);
-                cout<<"dependent probabilty: "<<dep_p_attr->at(dims)<<endl;
-            }
-            dep_count=0;
-            //dims[2]=0;
-        }
-    }
-}
 
 datum::datum()
 {
