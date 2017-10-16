@@ -82,9 +82,10 @@ public:
     ~classifier();
     void query(string*); //return a class score
     void print_attr();
+    int class_ind(char c);
     
     void process(string); //read data from a file, and populate the probability matrices
-    char classify(string* csv); //given some comma seperated values, the model will output
+    int classify(string* csv); //given some comma seperated values, the model will output
     //classification based on the attributes
 };
 

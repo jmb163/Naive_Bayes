@@ -27,7 +27,12 @@ classifier::~classifier()
     num_classes=0;
 }
 
-char classifier::classify(string* csv)
+int classifier::class_ind(char c)
+{
+    return at_list[0]->get_index(c);
+}
+
+int classifier::classify(string* csv)
 {
 //    p_c->print_native();
 //    cout<<"end"<<endl;
@@ -58,21 +63,28 @@ char classifier::classify(string* csv)
     //    matrix<double>* p_c;       //holds the sum of the classes that appear
     //    matrix<double>* p_attr;    //probability of a given attribute
     //    matrix<double>* dep_p_attr;//probability of a given attribute given its class
+    //cout<<"Calculating probability of attributes"<<endl;
     for(int i=0; i<num_attr; ++i)
     {
         attribute_indices[0]=dependent_indices[1]=i;
         attribute_indices[1]=dependent_indices[2]=indices[i];
-        attribute_probabilities*=p_attr->at(attribute_indices);
+        attribute_probabilities*=1.1*p_attr->at(attribute_indices);
+        //cout<<p_attr->at(attribute_indices)<<"x";
+        //cout<<p_attr->at(attribute_indices)<<" x ";
         for(int j=0; j<num_classes; ++j)
         {
             dependent_indices[0]=j;
-            dependent_probabilities[j]*=10*dep_p_attr->at(dependent_indices); //times 10 to avoid numerical underflow
+            //cout<<"attribute num: "<<i<<endl;
+            //cout<<dep_p_attr->at(dependent_indices)<<" class: "<<j<<endl;
+            dependent_probabilities[j]*=dep_p_attr->at(dependent_indices); //times 10 to avoid numerical underflow
         }
     }
+    //cout<<endl;
+    
     int class_indices[]={0};
     for(int i=0; i<num_classes; ++i)
     {
-        class_indices[i]=i;
+        class_indices[0]=i;
         class_probabilities[i]=p_c->at(class_indices);
     }
     ofstream out("logfile.txt", std::ios_base::app); //set the stream to append, an interested user can tail the file
@@ -83,9 +95,21 @@ char classifier::classify(string* csv)
         out.close();
     }
     double* final_prediction =new double[num_classes];
+    int max=0;
+    for(int i=0; i<num_classes; ++i)
+    {
+        final_prediction[i]=((dependent_probabilities[i]*class_probabilities[i])/attribute_probabilities);
+    }
+
+    max = std::distance(final_prediction, std::max_element(final_prediction, final_prediction+num_classes));
     for(int i=0; i<num_classes; ++i)
     {
         out<<"Diagnostics info:"<<endl;
+        for(int j=0; j<num_attr; ++j)
+        {
+            out<<csv[j+1]<<",";
+        }
+        out<<endl;
         out<<"class index-> "<<i<<endl;
         out<<"class value-> "<<at_list[0]->get_entries()[i]<<endl;
         out<<"class probabilty-> "<<class_probabilities[i]<<endl;
@@ -94,7 +118,9 @@ char classifier::classify(string* csv)
         final_prediction[i]=((class_probabilities[i]*dependent_probabilities[i])/attribute_probabilities);
         out<<"final prediction for class-> "<<final_prediction[i]<<endl;
     }
-    return 'c';
+    out<<"final prediction is "<<at_list[0]->get_entries()[max]<<endl;
+    out<<"max is: "<<max<<endl;
+    return max;
     
 }
 
@@ -194,7 +220,6 @@ void classifier::process(string fname)
             inc_matrix(dependent_summation, dep_attr_index);
         }
     }
-    
 //    c_summation->print_native();
 //    cout<<"end"<<endl;
 //    attribute_summation->print_native();
@@ -205,12 +230,13 @@ void classifier::process(string fname)
     //now that the summation matrices are complete, we must compute probabilties
     //implement the laplace transform, add 1 to all values, divide by one more,
     //this method avoids numerical underflow or division by zero errors
-    int* c_sums=new int[num_classes];
     int* at_sums=new int[num_attr];
     int** dep_sums=new int*[num_classes];
     int* num_e=new int[num_attr];
     
-    int start_value=1; //can be changed to help with laplace transform
+    int start_value=1;
+    int c_sums=start_value;
+    //can be changed to help with laplace transform
     //make sure that there are no garbage values anywhere;
     
     //in this case I am setting the start value to one, as division by zero will cause many more errors in the case that any
@@ -226,11 +252,14 @@ void classifier::process(string fname)
         for(int j=0; j<num_classes; ++j)
         {
             dep_sums[j][i]=start_value;
+        
         }
     }
+    
     for(int i=0; i<num_classes; ++i)
     {
-        c_sums[i]=start_value;
+        int cind[]={i};
+        c_sums+=c_summation->at(cind);
     }
     int pattr_index[]={0,0};
     int dep_attr_index[]={0, 0, 0};
@@ -243,46 +272,47 @@ void classifier::process(string fname)
             pattr_index[1]=dep_attr_index[2]=j;
             //cout<<"wow "<<i<<" "<<j<<endl;
             at_sums[i]+=attribute_summation->at(pattr_index);
-            cout<<"adding "<<attribute_summation->at(pattr_index)<<" to at_sums["<<i<<"]"<<endl;
+            //cout<<"adding "<<attribute_summation->at(pattr_index)<<" to at_sums["<<i<<"]"<<endl;
             for(int h=0; h<num_classes; ++h)
             {
                 //cout<<"in here"<<endl;
-                cout<<"adding "<<dependent_summation->at(pattr_index)<<" to dep_sums["<<i<<"]["<<h<<"]"<<endl;
+                dep_attr_index[0]=h;
+                //cout<<"adding "<<dependent_summation->at(dep_attr_index)<<" to dep_sums["<<i<<"]["<<h<<"]"<<endl;
                 dep_sums[h][i]+=dependent_summation->at(dep_attr_index);
             }
         }
     }
-    cout<<"at_sums: "<<endl;
-    for(int i=0; i<num_attr; ++i)
+    for(int i=0; i<num_classes; ++i)
     {
-        cout<<at_sums[i]<<endl;
+        int cind[]={i};
+        p_c->set(cind, (((double)c_summation->at(cind)/(double)c_sums)));
     }
-    cout<<"dep_sums: "<<endl;
+    double laplace_value=1;
     for(int i=0; i<num_attr; ++i)
     {
-        for(int j=0; j<num_classes; ++j)
-        {
-            cout<<dep_sums[j][i]<<endl;
-        }
-    }
-    int laplace_value=1;
-    for(int i=0; i<num_attr; ++i)
-    {
-        for(int j=0; j<num_e[i]; ++i)
+        for(int j=0; j<num_e[i]; ++j)
         {
             pattr_index[0]=dep_attr_index[1]=i;
             pattr_index[1]=dep_attr_index[2]=j;
-            p_attr->set(pattr_index,((double)attribute_summation->at(pattr_index)+laplace_value)/at_sums[i]);
+            //cout<<"---> "<<(double)attribute_summation->at(pattr_index)+laplace_value<<" / "<<at_sums[0]<<endl;
+            p_attr->set(pattr_index,((double)attribute_summation->at(pattr_index)+laplace_value)/(double)at_sums[0]);
+            //cout<<"result---> "<<p_attr->at(pattr_index)<<endl;
             for(int h=0; h<num_classes; ++h)
             {
                 //cout<<(((double)dependent_summation->at(dep_attr_index)+laplace_value)/dep_sums[h][i])<<endl;
-                dep_p_attr->set(dep_attr_index,((double)dependent_summation->at(dep_attr_index)+laplace_value)/dep_sums[h][i]);
+                dep_attr_index[0]=h;
+                //cout<<"--->"<<(double)dependent_summation->at(dep_attr_index)+laplace_value<<" / "<<dep_sums[h][i]<<endl;
+                dep_p_attr->set(dep_attr_index,((double)dependent_summation->at(dep_attr_index)+laplace_value)/(double)dep_sums[h][0]);
+                //cout<<"result---->"<<dep_p_attr->at(dep_attr_index)<<endl;
             }
         }
     }
+//    p_attr->print_native();
+//    cout<<"end"<<endl;
+//    dep_p_attr->print_native();
+//    cout<<"end"<<endl;
     delete[] num_e;
     delete[] indexes;
-    delete[] c_sums;
     delete[] at_sums;
     for(int i=0; i<num_classes; ++i)
     {
@@ -420,9 +450,9 @@ void classifier::init(string fname)
     int dep_dems[]={num_classes, num_attr, max_attr};
     
     //allocate summation matrices
-    p_c=new matrix<double>(pc_dems, 1, 0);
-    p_attr=new matrix<double>(pattr_dems, 2, 0);
-    dep_p_attr=new matrix<double>(dep_dems, 3, 0);
+    p_c=new matrix<double>(pc_dems, 1, 1);
+    p_attr=new matrix<double>(pattr_dems, 2, 1);
+    dep_p_attr=new matrix<double>(dep_dems, 3, 0.1);
     //config is loaded, and or created, proceed to count through data,
     //structures will now be initialized to hold probabilities
     //basically the training set will be iterated through, and the success of the model
