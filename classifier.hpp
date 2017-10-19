@@ -84,7 +84,7 @@ public:
     void print_attr();
     int class_ind(char c);
     
-    void process(string); //read data from a file, and populate the probability matrices
+    int process(string); //read data from a file, and populate the probability matrices
     int classify(string* csv); //given some comma seperated values, the model will output
     //classification based on the attributes
 };

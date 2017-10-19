@@ -181,13 +181,13 @@ int classifier::classify(string* csv)
 //    }
 //}
 
-void classifier::process(string fname)
+int classifier::process(string fname)
 {
     ifstream in(fname);
     if(in.fail()||!in)
     {
         cout<<"problem loading training set, exiting now..."<<endl;
-        return;
+        return -1;
     }
     string hold;
     int c_dims[]={num_classes};
@@ -198,6 +198,8 @@ void classifier::process(string fname)
     matrix<int>* attribute_summation=new matrix<int>(attr_dims, 2, 0);
     matrix<int>* dependent_summation=new matrix<int>(dep_dims, 3, 0);
     int* indexes=new int[num_attr+1];
+    
+    int num_train=0;
     while(getline(in, hold))
     {
         //record of indexes in attribute list for easier times later
@@ -219,6 +221,7 @@ void classifier::process(string fname)
             inc_matrix(attribute_summation, pattr_index);
             inc_matrix(dependent_summation, dep_attr_index);
         }
+        num_train++;
     }
 //    c_summation->print_native();
 //    cout<<"end"<<endl;
@@ -324,7 +327,7 @@ void classifier::process(string fname)
     delete[] dep_sums;
     
     //free all the memory used in the processing stage
-    return;
+    return num_train;
     //build probability matrices from summation matrices
     
 }
